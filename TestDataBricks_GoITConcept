@@ -1,0 +1,101 @@
+#Leitura da Base de Dados "Video Game Sales"
+df1 = spark.read.format("csv").option("header", "true").load("dbfs:/FileStore/shared_uploads/lucasdeosaldanha@gmail.com/vgsales.csv")
+display(df1)
+
+
+# Caminho para o arquivo CSV
+caminho_csv = "dbfs:/FileStore/shared_uploads/lucasdeosaldanha@gmail.com/vgsales.csv"
+# Leitura do arquivo CSV
+df = spark.read.csv(caminho_csv, header=True, inferSchema=True)
+# Exibição das primeiras linhas do DataFrame
+df.show()
+
+
+from pyspark.sql.functions import count, when, isnull
+# Verificar valores nulos em cada coluna
+df.select([count(when(isnull(c), c)).alias(c) for c in df.columns]).show()
+# Contar diferentes nomes de jogos
+total_jogos = df.select("Name").distinct().count()
+print(f"Total de jogos diferentes: {total_jogos}")
+
+
+from pyspark.sql.functions import col, round
+# Adicionar colunas calculadas para porcentagem de vendas em relação ao total global
+df_com_porcentagens = df.withColumn(
+    "Percent_NA_Global_Sales",
+    round((col("NA_Sales") / col("Global_Sales")) * 100, 2)
+).withColumn(
+    "Percent_EU_Global_Sales",
+    round((col("EU_Sales") / col("Global_Sales")) * 100, 2)
+).withColumn(
+    "Percent_JP_Global_Sales",
+    round((col("JP_Sales") / col("Global_Sales")) * 100, 2)
+).withColumn(
+    "Percent_Other_Global_Sales",
+    round((col("Other_Sales") / col("Global_Sales")) * 100, 2)
+)
+# Exibir as primeiras linhas do DataFrame com as novas colunas
+df_com_porcentagens.show()
+
+
+from pyspark.sql.functions import sum, col
+# Somar as vendas globais por empresa (Publisher) e exibir em ordem decrescente
+soma_vendas_por_editora_ordem_decrescente = (
+    df.groupBy("Publisher")
+    .agg(
+        count("Name").alias("Quantidade_Jogos"),
+        round(sum("Global_Sales"), 2).alias("Total_Vendas_Globais")
+    )
+    .orderBy(col("Total_Vendas_Globais").desc())
+)
+
+# Exibir o resultado
+soma_vendas_por_editora_ordem_decrescente.show(truncate=False)
+
+
+# Caminho para salvar os dados em formato Parquet
+caminho_parquet = "/dbfs/FileStore/parquet_output"
+# Salvar dados transformados em formato Parquet
+df_com_porcentagens.write.parquet(caminho_parquet, mode="overwrite")
+
+# Caminho para salvar os dados em formato Parquet
+caminho_parquet_soma_vendas = "/dbfs/FileStore/parquet_output_soma_vendas"
+# Salvar dados transformados em formato Parquet
+soma_vendas_por_editora_ordem_decrescente.write.parquet(caminho_parquet_soma_vendas, mode="overwrite")
+
+
+# Caminho absoluto para salvar os dados em formato Delta Lake
+caminho_delta_absoluto = "/dbfs/FileStore/delta_output"
+# Salvar dados transformados em formato Delta Lake
+df_com_porcentagens.write.format("delta").mode("overwrite").save(caminho_delta_absoluto)
+
+# Caminho absoluto para salvar os dados em formato Delta Lake
+caminho_delta_soma_vendas = "/dbfs/FileStore/delta_output_soma_vendas"
+# Salvar dados transformados em formato Delta Lake
+soma_vendas_por_editora_ordem_decrescente.write.format("delta").mode("overwrite").save(caminho_delta_soma_vendas)
+
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+# Converter DataFrame para Pandas para usar com matplotlib/seaborn
+df_contagem_pandas = contagem_por_editora_ordem_decrescente.toPandas()
+# Configurar gráfico de barras
+plt.figure(figsize=(12, 6))
+sns.barplot(x="Quantidade_Jogos", y="Publisher", data=df_contagem_pandas)
+# Adicionar rótulos e título
+plt.xlabel("Quantidade de Jogos")
+plt.ylabel("Empresa (Publisher)")
+plt.title("Quantidade de Jogos por Empresa")
+# Exibir o gráfico
+plt.show()
+
+
+# Converter DataFrame para Pandas para usar com matplotlib/seaborn
+df_soma_vendas_pandas = soma_vendas_por_editora_ordem_decrescente.toPandas()
+# Configurar gráfico de pizza
+plt.figure(figsize=(12, 8))
+plt.pie(df_soma_vendas_pandas["Total_Vendas_Globais"], labels=df_soma_vendas_pandas["Publisher"], autopct="%1.1f%%", startangle=140)
+# Adicionar título
+plt.title("Participação nas Vendas Globais por Empresa")
+# Exibir o gráfico
+plt.show()
