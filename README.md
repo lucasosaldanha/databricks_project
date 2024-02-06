@@ -1,1 +1,3 @@
-# databricks
+# Databricks Project
+
+Este projeto, realizado no ambiente Databricks, abrange atividades abrangentes de análise, modelagem, transformação, processamento e visualização de dados. Utiliza como base o conjunto de dados "Video Game Sales", que inclui informações sobre videogames com vendas superiores a 100.000 cópias. O foco é extrair insights sobre padrões de vendas, preferências do público e tendências de mercado, aplicando técnicas de Engenharia de Dados. A transformação e processamento eficientes dos dados são fundamentais, culminando na criação de visualizações claras e impactantes para comunicar os resultados obtidos. O objetivo geral é compreender e otimizar o desempenho dos videogames no mercado.
